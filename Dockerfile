@@ -1,6 +1,11 @@
 # Use the official Python image
 FROM python:3.10
 
+# Install system dependencies required for lxml
+RUN apt-get update && apt-get install -y \
+    libxml2-dev libxslt-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory
 WORKDIR /app
 
