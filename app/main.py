@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uwtools
 import logging
 from enum import Enum
+from asyncio import to_thread
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,26 +28,18 @@ async def get_majors(campus: CampusEnum):
     logger.info(f"Fetching majors for campus: {campus}")
     
     try:
-        departments_data = uwtools.departments(campuses=[campus.value], struct='dict', flatten='department')
+        # Run the blocking operation in a thread pool
+        departments_data = await to_thread(
+            uwtools.departments,
+            campuses=[campus.value],
+            struct='dict',
+            flatten='department'
+        )
     except Exception as e:
         logger.error(f"Error fetching majors: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
 
     return {"campus": campus.value, "majors": departments_data}
-
-@app.get("/buildings/{campus}", summary="Get buildings for a UW campus", response_model=dict)
-async def get_buildings(campus: CampusEnum):
-    """
-    Fetches the list of buildings available at a given UW campus.
-    """
-    logger.info(f"Fetching buildings for campus: {campus}")
-    try:
-        buildings_data = uwtools.buildings(campuses=[campus.value])
-    except Exception as e:
-        logger.error(f"Error fetching buildings: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
-        
-    return {"campus": campus.value, "buildings": buildings_data}
 
 @app.get("/courses/{campus}", summary="Get courses for a UW campus", response_model=dict)
 async def get_courses(campus: CampusEnum):
@@ -55,7 +48,13 @@ async def get_courses(campus: CampusEnum):
     """
     logger.info(f"Fetching courses for campus: {campus}")
     try:
-        courses_data = uwtools.course_catalogs(campuses=[campus.value], struct='dict', show_progress=False)
+        # Run the blocking operation in a thread pool
+        courses_data = await to_thread(
+            uwtools.course_catalogs,
+            campuses=[campus.value],
+            struct='dict',
+            show_progress=False
+        )
         simplified_courses = {key: {'Course Name': info.get('Course Name', '')} for key, info in courses_data.items() if isinstance(info, dict)}
     except Exception as e:
         logger.error(f"Error fetching courses: {str(e)}")
